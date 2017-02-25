@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one or more
+ contributor license agreements.  See the NOTICE file distributed with
+ this work for additional information regarding copyright ownership.
+ The ASF licenses this file to You under the Apache License, Version 2.0
+ (the "License"); you may not use this file except in compliance with
+ the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<!--
+ This is the Solr schema file. This file should be named "schema.xml" and should be
+ in the conf directory under the solr core home (e.g. solr/<core>/conf/schema.xml)
+ or located where the classloader for the Solr webapp can find it.
+
+ For more information on how to customize this file, see http://wiki.apache.org/solr/SchemaXml
+
+ PERFORMANCE NOTE: this schema includes many optional features and should not
+ be used for benchmarking.  To improve performance one could:
+  - Set stored="false" for all fields possible (esp large fields) when you only need
+    to search on the field but don't need to return the original value.
+  - Set indexed="false" if you don't need to search on the field, but only return the
+    field as a result of searching on other indexed fields.
+  - Remove all unneeded copyField statements.
+  - For best index size and searching performance, set "index" to false for all general text
+    fields. Use copyField to copy them to the catchall "text" field, and use that for searching.
+  - For maximum indexing performance, use the StreamingUpdateSolrServer java client.
+  - Remember to run the JVM in server mode, and use a higher logging level.
+-->
+
+<schema name="benchamark1" version="1.0">
+    <!-- The StrField type is not analyzed, but indexed/stored verbatim. -->
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+  
+   <fieldType name="long" class="solr.TrieLongField" precisionStep="0" positionIncrementGap="0"/>
+
+    <!-- Valid attributes for fields:
+
+         name: mandatory - the name for the field
+         type: mandatory - the name of a previously defined type from the
+         indexed: true if this field should be indexed (searchable or sortable)
+         stored: true if this field should be retrievable
+         multiValued: true if this field may contain multiple values per document
+         omitNorms: (expert) set to true to omit the norms associated with
+                    this field (this disables length normalization and index-time
+                    boosting for the field, and saves some memory).  Only full-text
+                    fields or fields that need an index-time boost need norms.
+                    Norms are omitted for primitive (non-analyzed) types by default.
+         termVectors: [false] set to true to store the term vector for a given field.
+         termPositions: Store position information with the term vector. This will increase storage costs.
+         termOffsets: Store offset information with the term vector. This will increase storage costs.
+         required: The field is required.  NOTE: It will throw an error if the value does not exist.
+         default: a value that should be used if no value is specified when adding a document.
+
+         NOTE: When using MoreLikeThis, fields used for similarity should be stored for best performance.
+
+         Field names should consist of alphanumeric or underscore characters only and not start with a numeric.
+    -->
+
+    <!-- If you remove this field, you must disable the updateLog in solrconfig.xml or SOLR won't start.
+         NOTE: _version_ and update log are required for SolrCloud
+    -->
+    
+     <field name="_version_" type="long" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- BenchMark1 FIELDS -->
+    <fields>
+   		 <field name="_root_" type="string" indexed="true" stored="true"/>
+   		 <field name="category"                        type="string"         indexed="true"  stored="true"   multiValued="false" required="false"     omitTermFreqAndPositions="true" />
+   		 <field name="name"                 type="string"         indexed="true"  stored="true"   multiValued="false" required="false"     omitTermFreqAndPositions="true" />
+    	 <field name="id"                type="string"       indexed="true"  stored="true"   multiValued="false" required="false"    omitTermFreqAndPositions="true" />
+   
+         <field name="firstname"                type="string"       indexed="true"  stored="true"   multiValued="false" required="false"    omitTermFreqAndPositions="true" />
+         <field name="lastname"                type="string"       indexed="true"  stored="true"   multiValued="false" required="false"    omitTermFreqAndPositions="true" />
+         <field name="authorType"                type="string"       indexed="true"  stored="true"   multiValued="false" required="false"    omitTermFreqAndPositions="true" />
+    </fields>
+    <!-- Uncomment the following to ignore any fields that don't already match an existing field name or dynamic field,
+         rather than reporting them as an error. Alternatively, change the type="ignored" to some other type if you
+         want unknown fields indexed and/or stored by default. -->
+    <!--
+         <dynamicField name="*" type="ignored" multiValued="true"/>
+    -->
+
+    <!-- Field to use to determine and enforce document uniqueness. Required field, unless marked with required="false". -->
+    <uniqueKey>id</uniqueKey>
+
+    <!-- Field for the QueryParser to use when an explicit fieldname is absent -->
+    <defaultSearchField>name</defaultSearchField>
+
+    <!-- SolrQueryParser configuration: defaultOperator="AND|OR" -->
+    <solrQueryParser defaultOperator="OR"/>
+
+    <!-- Similarity is the scoring routine for each document vs. a query.
+         A custom Similarity or SimilarityFactory may be specified here, but
+         the default is fine for most applications.
+         For more info: http://wiki.apache.org/solr/SchemaXml#Similarity
+    -->
+    <!--
+        <similarity class="com.example.solr.CustomSimilarityFactory">
+            <str name="paramkey">param value</str>
+        </similarity>
+    -->
+</schema>
