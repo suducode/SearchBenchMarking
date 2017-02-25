@@ -3,7 +3,7 @@
  Solr vs ElasticSearch
  
  
- # Setting up Solr :
+ ## Setting up Solr :
  
  Use Schema from resource folder : schema.xml
  
@@ -12,6 +12,6 @@
  
 
 
-# Initialize the core using the following command :
+## Initialize the core using the following command :
 
 http://localhost:9000/solr/admin/cores?action=CREATE&name=coreX&instanceDir=benchmarktest1&config=solrconfig.xml&schema=schema.xml&dataDir=data
