@@ -1,4 +1,4 @@
-# SearchBenchMarking
+# SearchBenchmarking
  
  Solr vs ElasticSearch
  
