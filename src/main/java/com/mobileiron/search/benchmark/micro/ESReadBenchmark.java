@@ -2,9 +2,9 @@ package com.mobileiron.search.benchmark.micro;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
@@ -16,6 +16,7 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -27,10 +28,11 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.logic.BlackHole;
-import com.mobileiron.search.benchmark.exception.BenchmarkingException;
-import static org.elasticsearch.index.query.QueryBuilders.wildcardQuery;
-import static org.elasticsearch.index.query.QueryBuilders.nestedQuery;
 
+import com.mobileiron.search.benchmark.exception.BenchmarkingException;
+
+import static org.elasticsearch.index.query.QueryBuilders.wildcardQuery;
+import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 
 /**
  * Elastic search read benchmarking on a single node and a cluster
@@ -38,28 +40,32 @@ import static org.elasticsearch.index.query.QueryBuilders.nestedQuery;
 
 public class ESReadBenchmark {
 
-    private static final int MAX = 1000;
 
     @State(Scope.Thread)
     public static class MyState {
 
         @Setup(Level.Trial)
-        public void doSetup() throws IOException {
+        public void doSetup() throws IOException, InterruptedException {
             System.out.println("Do Setup");
+
+            System.out.println("Wait for the clean up process to complete from before");
+            Thread.sleep(2000);
+
             client = new PreBuiltTransportClient(Settings.EMPTY)
                     .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
             BulkRequestBuilder bulkRequest = client.prepareBulk();
 
-            for (int counter = 0; counter < MAX; ++counter) {
+            for (int counter = 0; counter < MAX_MiCRO; ++counter) {
                 XContentBuilder builder = XContentFactory.jsonBuilder().startObject()
                         .field("category", "book")
                         .field("id", "book-" + counter)
                         .field("name", "The Legend of the Hobbit part " + counter)
-                            .startObject("author")
-                            .field("firstname", "first" + counter)
-                            .field("lastname", "last" + counter)
-                            .endObject()
+                        .startObject("author")
+                        .field("firstname", "first" + counter)
+                        .field("lastname", "last" + counter)
+                        .field("authorType", AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)])
+                        .endObject()
                         .endObject();
 
                 bulkRequest.add(client.prepareIndex("book", "Hobbit").setSource(builder));
@@ -68,6 +74,10 @@ public class ESReadBenchmark {
             if (bulkResponse.hasFailures()) {
                 // process failures by iterating through each bulk response item
             }
+
+            System.out.println("Waiting for setup to be complete ...");
+            Thread.sleep(5000);
+
             System.out.println("Setup done !");
         }
 
@@ -78,6 +88,7 @@ public class ESReadBenchmark {
             if (!delete.isAcknowledged()) {
                 throw new Exception("Index wasn't deleted");
             }
+            client.close();
             System.out.println("Clean up done !");
         }
 
@@ -90,9 +101,9 @@ public class ESReadBenchmark {
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void testSimpleRead(MyState state, BlackHole blackHole) throws IOException {
         int curr = (++state.inc);
-        if (curr == MAX) {
+        if (curr == MAX_MiCRO) {
             state.inc = 1;
-            curr = state.inc;
+            curr = 1;
         }
         QueryBuilder matchSpecificFieldQuery = wildcardQuery("id", "*" + curr);
         SearchResponse response = state.client.prepareSearch().setQuery(matchSpecificFieldQuery)
@@ -101,7 +112,7 @@ public class ESReadBenchmark {
                 .execute()
                 .actionGet();
 
-        sendToBlackHole(response,blackHole);
+        sendToBlackHole(response, blackHole, state);
     }
 
     @GenerateMicroBenchmark
@@ -109,7 +120,7 @@ public class ESReadBenchmark {
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void testNestedRead(MyState state, BlackHole blackHole) throws IOException {
         int curr = (++state.inc);
-        if (curr == MAX) {
+        if (curr == MAX_MiCRO) {
             state.inc = 1;
             curr = state.inc;
         }
@@ -120,18 +131,45 @@ public class ESReadBenchmark {
                 .setTypes("Hobbit")
                 .execute()
                 .actionGet();
-        sendToBlackHole(response,blackHole);
+        sendToBlackHole(response, blackHole, state);
     }
 
 
+    /**
+     * Query for a value in the parent document while filtering for a criteria in the child document.
+     */
 
-    private void sendToBlackHole(SearchResponse response , BlackHole blackHole) {
+    @GenerateMicroBenchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public void testNestedFilterRead(MyState state, BlackHole blackHole) {
+
+        QueryBuilder matchSpecificFieldQuery = QueryBuilders.boolQuery()
+                .should(wildcardQuery("id", "*"))
+                .filter(wildcardQuery("author.authorType", AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)])).minimumShouldMatch(1);
+        SearchResponse response = state.client.prepareSearch().setQuery(matchSpecificFieldQuery)
+                .setIndices("book")
+                .setTypes("Hobbit")
+                .execute()
+                .actionGet();
+        long hits = response.getHits().totalHits();
+        if (hits > 0)
+            blackHole.consume(response);
+    }
+
+    /**
+     * Send to blackhole to avoid dead code elimination.
+     *
+     * @param response  search response
+     * @param blackHole
+     */
+    private void sendToBlackHole(SearchResponse response, BlackHole blackHole, MyState state) {
         long hits = response.getHits().totalHits();
         if (hits > 0) {
             blackHole.consume(response);
         } else {
             try {
-                throw new BenchmarkingException("Elastic Search did not retrieve anything !!");
+                throw new BenchmarkingException("Elastic Search did not retrieve anything for " + state.inc);
             } catch (BenchmarkingException e) {
                 e.printStackTrace();
             }

@@ -23,7 +23,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.logic.BlackHole;
 
 import com.mobileiron.search.benchmark.exception.BenchmarkingException;
-
+import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 
 /**
  * This class is written to do benchmarking on the solr writes both standalone and cluster
@@ -31,17 +31,13 @@ import com.mobileiron.search.benchmark.exception.BenchmarkingException;
 
 public class SolrReadBenchmark {
 
-    private static final int MAX = 1000;
-
-    private static final String[] AUTHOR_TYPES = {"fiction","mystery","romance","dark","comedy"};
-
     @State(Scope.Thread)
     public static class MyState {
 
         @Setup(Level.Trial)
         public void doSetup() throws IOException, SolrServerException {
             server = new HttpSolrClient.Builder().withBaseSolrUrl("http://localhost:9000/solr/benchmarktest1").build();
-            for (int counter = 0; counter < MAX; ++counter) {
+            for (int counter = 0; counter < MAX_MiCRO; ++counter) {
                 SolrInputDocument doc = new SolrInputDocument();
                 doc.addField("category", "book");
                 doc.addField("id", "book-" + counter);
@@ -63,6 +59,7 @@ public class SolrReadBenchmark {
         @TearDown(Level.Trial)
         public void doTearDown() throws IOException, SolrServerException {
             server.deleteByQuery("*:*");
+            server.commit();
             server.close();
             System.out.println("TearDown Done");
         }
@@ -78,7 +75,7 @@ public class SolrReadBenchmark {
 
         SolrQuery query = new SolrQuery();
         int curr = (++state.inc);
-        if (curr == MAX) {
+        if (curr == MAX_MiCRO) {
             state.inc = 1;
             curr = state.inc;
         }
@@ -98,7 +95,7 @@ public class SolrReadBenchmark {
 
         SolrQuery query = new SolrQuery();
         int curr = (++state.inc);
-        if (curr == MAX) {
+        if (curr == MAX_MiCRO) {
             state.inc = 1;
             curr = state.inc;
         }
@@ -119,7 +116,7 @@ public class SolrReadBenchmark {
     public void testNestedFilterRead(MyState state, BlackHole blackhole) throws IOException, SolrServerException, BenchmarkingException {
 
      SolrQuery query = new SolrQuery();
-     query.setQuery("name:join +{!parent which=\"id:*\"}authorType:mystery");
+     query.setQuery("name:join +{!parent which=\"id:*\"}authorType:"+AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)]);
 
         QueryResponse response = state.server.query(query);
         SolrDocumentList results = response.getResults();

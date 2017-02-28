@@ -38,9 +38,14 @@ public class ESWriteBenchmark {
     public static class MyState {
 
         @Setup(Level.Trial)
-        public void doSetup() throws UnknownHostException {
+        public void doSetup() throws UnknownHostException, InterruptedException {
+
+            System.out.println("Wait for the clean up process to complete from before");
+            Thread.sleep(5000);
+
             client = new PreBuiltTransportClient(Settings.EMPTY)
                     .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
             System.out.println("Do Setup");
         }
 
@@ -50,6 +55,7 @@ public class ESWriteBenchmark {
             if (!delete.isAcknowledged()) {
                 throw new Exception("Index wasn't deleted");
             }
+            client.close();
             System.out.println("Do TearDown");
         }
 
