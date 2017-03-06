@@ -1,7 +1,7 @@
 package com.mobileiron.search.benchmark.macro;
 
 import static com.mobileiron.search.benchmark.common.CommonDefinitions.AUTHOR_TYPES;
-import static com.mobileiron.search.benchmark.common.CommonDefinitions.MAX_MACRO;
+import static com.mobileiron.search.benchmark.common.CommonDefinitions.MAX;
 import static com.mobileiron.search.benchmark.common.CommonDefinitions.printStats;
 
 import java.io.IOException;
@@ -25,6 +25,11 @@ public class SolrWriteMacroBenchmark {
 
     SolrClient server;
 
+    public SolrWriteMacroBenchmark() {
+
+        System.out.println("---------SOLR Writes Macro Benchmarking --------------");
+    }
+
     private void setup() throws UnknownHostException, InterruptedException {
 
         System.out.println("Do Setup");
@@ -43,12 +48,14 @@ public class SolrWriteMacroBenchmark {
 
     public void insertOneByOne() throws InterruptedException, IOException, BenchmarkingException, SolrServerException {
 
+        System.out.println("----------------Insert One By One ----------------------------");
+
         setup();
 
         try {
             Meter meter = new Meter();
 
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
 
                 SolrInputDocument doc = new SolrInputDocument();
                 doc.addField("category", "book");
@@ -66,7 +73,7 @@ public class SolrWriteMacroBenchmark {
                 if (status == 0)
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
             server.commit(); // makes sure all of them got in and has a cluster wide sync.
@@ -80,13 +87,15 @@ public class SolrWriteMacroBenchmark {
 
     public void bulkInsert() throws InterruptedException, IOException, BenchmarkingException, SolrServerException {
 
+        System.out.println("--------------Bulk Insert--------------------");
+
         setup();
 
         try {
             long startTime = System.currentTimeMillis();
 
             List<SolrInputDocument> docs = new ArrayList<>();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 SolrInputDocument doc = new SolrInputDocument();
                 doc.addField("category", "book");
                 doc.addField("id", "book-" + counter);
@@ -102,15 +111,18 @@ public class SolrWriteMacroBenchmark {
             }
 
             int status = server.add(docs).getStatus();
+
             if (status != 0)
                 throw new BenchmarkingException("Solr Bulk Insert Failed !");
+
+
             server.commit();
 
             long endTime = System.currentTimeMillis();
 
             long netInSecs = (endTime - startTime) / 1000;
 
-            System.out.println("Bulk Insert Rate in (ops/sec): " + (MAX_MACRO / netInSecs));
+            System.out.println("Bulk Insert Rate in (ops/sec): " + (MAX / netInSecs));
 
         } finally {
             tearDown();

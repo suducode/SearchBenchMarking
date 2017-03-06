@@ -30,6 +30,11 @@ public class ESWriteMacroBenchmark {
 
     private Client client;
 
+
+    public ESWriteMacroBenchmark() {
+        System.out.println("---------Elastic Search Writes Macro Benchmarking --------------");
+    }
+
     private void setup() throws UnknownHostException, InterruptedException {
 
         System.out.println("Wait for the clean up process to complete from before");
@@ -54,12 +59,14 @@ public class ESWriteMacroBenchmark {
 
     public void insertOneByOne() throws InterruptedException, IOException, BenchmarkingException {
 
+        System.out.println("----------------Insert One By One ----------------------------");
+
         setup();
 
         try {
             Meter meter = new Meter();
 
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 XContentBuilder builder = XContentFactory.jsonBuilder().startObject()
                         .field("category", "book")
                         .field("id", "book-" + counter)
@@ -76,7 +83,7 @@ public class ESWriteMacroBenchmark {
                 if (response.getResult().equals(DocWriteResponse.Result.CREATED))
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
 
@@ -92,6 +99,8 @@ public class ESWriteMacroBenchmark {
 
     public void bulkInsert() throws InterruptedException, IOException, BenchmarkingException {
 
+        System.out.println("--------------Bulk Insert--------------------");
+
         setup();
 
         try {
@@ -99,7 +108,7 @@ public class ESWriteMacroBenchmark {
 
             BulkRequestBuilder bulkRequest = client.prepareBulk();
 
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 XContentBuilder builder = XContentFactory.jsonBuilder().startObject()
                         .field("category", "book")
                         .field("id", "book-" + counter)
@@ -120,13 +129,13 @@ public class ESWriteMacroBenchmark {
             }
 
             // There is no commit for elastic search but by default does persistence and cluster sync every 1 sec
-            Thread.sleep(2000);
+            Thread.sleep(1000);
 
             long endTime = System.currentTimeMillis();
 
             long netInSecs = (endTime - startTime) / 1000;
 
-            System.out.println("Bulk Insert Rate in (ops/sec): " + (MAX_MACRO / netInSecs));
+            System.out.println("Bulk Insert Rate in (ops/sec): " + (MAX / netInSecs));
 
         } finally {
             tearDown();

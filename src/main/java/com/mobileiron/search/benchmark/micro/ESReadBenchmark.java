@@ -17,6 +17,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -37,7 +38,6 @@ import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 /**
  * Elastic search read benchmarking on a single node and a cluster
  */
-
 public class ESReadBenchmark {
 
 
@@ -45,7 +45,7 @@ public class ESReadBenchmark {
     public static class MyState {
 
         @Setup(Level.Trial)
-        public void doSetup() throws IOException, InterruptedException {
+        public void doSetup() throws IOException, InterruptedException, BenchmarkingException {
             System.out.println("Do Setup");
 
             System.out.println("Wait for the clean up process to complete from before");
@@ -56,7 +56,7 @@ public class ESReadBenchmark {
 
             BulkRequestBuilder bulkRequest = client.prepareBulk();
 
-            for (int counter = 0; counter < MAX_MiCRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 XContentBuilder builder = XContentFactory.jsonBuilder().startObject()
                         .field("category", "book")
                         .field("id", "book-" + counter)
@@ -72,7 +72,7 @@ public class ESReadBenchmark {
             }
             BulkResponse bulkResponse = bulkRequest.get();
             if (bulkResponse.hasFailures()) {
-                // process failures by iterating through each bulk response item
+                throw new BenchmarkingException("Elastic Search Read benchmark setup failed !!");
             }
 
             System.out.println("Waiting for setup to be complete ...");
@@ -100,11 +100,8 @@ public class ESReadBenchmark {
     @BenchmarkMode(Mode.Throughput)
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void testSimpleRead(MyState state, BlackHole blackHole) throws IOException {
-        int curr = (++state.inc);
-        if (curr == MAX_MiCRO) {
-            state.inc = 1;
-            curr = 1;
-        }
+        int curr = ++state.inc;
+
         QueryBuilder matchSpecificFieldQuery = wildcardQuery("id", "*" + curr);
         SearchResponse response = state.client.prepareSearch().setQuery(matchSpecificFieldQuery)
                 .setIndices("book")
@@ -119,11 +116,7 @@ public class ESReadBenchmark {
     @BenchmarkMode(Mode.Throughput)
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void testNestedRead(MyState state, BlackHole blackHole) throws IOException {
-        int curr = (++state.inc);
-        if (curr == MAX_MiCRO) {
-            state.inc = 1;
-            curr = state.inc;
-        }
+        int curr = ++state.inc;
 
         QueryBuilder matchSpecificFieldQuery = wildcardQuery("author.lastname", "*" + curr);
         SearchResponse response = state.client.prepareSearch().setQuery(matchSpecificFieldQuery)
@@ -138,7 +131,6 @@ public class ESReadBenchmark {
     /**
      * Query for a value in the parent document while filtering for a criteria in the child document.
      */
-
     @GenerateMicroBenchmark
     @BenchmarkMode(Mode.Throughput)
     @OutputTimeUnit(TimeUnit.SECONDS)
@@ -146,15 +138,13 @@ public class ESReadBenchmark {
 
         QueryBuilder matchSpecificFieldQuery = QueryBuilders.boolQuery()
                 .should(wildcardQuery("id", "*"))
-                .filter(wildcardQuery("author.authorType", AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)])).minimumShouldMatch(1);
+                .filter(wildcardQuery("author.authorType", "mystery")).minimumShouldMatch(1);
         SearchResponse response = state.client.prepareSearch().setQuery(matchSpecificFieldQuery)
                 .setIndices("book")
                 .setTypes("Hobbit")
                 .execute()
                 .actionGet();
-        long hits = response.getHits().totalHits();
-        if (hits > 0)
-            blackHole.consume(response);
+        sendToBlackHole(response, blackHole, state);
     }
 
     /**
@@ -164,8 +154,7 @@ public class ESReadBenchmark {
      * @param blackHole
      */
     private void sendToBlackHole(SearchResponse response, BlackHole blackHole, MyState state) {
-        long hits = response.getHits().totalHits();
-        if (hits > 0) {
+        if (response.getHits().getTotalHits() > 0 || response.status().equals(RestStatus.OK)) {
             blackHole.consume(response);
         } else {
             try {
@@ -176,3 +165,4 @@ public class ESReadBenchmark {
         }
     }
 }
+

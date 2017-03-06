@@ -13,25 +13,32 @@ public class MacroBenchmarkRunner {
 
     public static void main(String[] args) throws InterruptedException, BenchmarkingException, IOException, SolrServerException {
 
+        if (args[0].equalsIgnoreCase("ES")) {
 
-        ESReadMacroBenchmark esReadMacro = new ESReadMacroBenchmark();
-        esReadMacro.simpleRead();
-        esReadMacro.nestedRead();
-        esReadMacro.nestedFilterRead();
-
-        SolrReadMacroBenchmark solrReadMacro = new SolrReadMacroBenchmark();
-        solrReadMacro.simpleRead();
-        solrReadMacro.nestedRead();
-        solrReadMacro.nestedFilteredRead();
+            ESReadMacroBenchmark esReadMacro = new ESReadMacroBenchmark();
+            esReadMacro.simpleRead();
+            esReadMacro.simplePatterRead();
+            esReadMacro.nestedRead();
+            esReadMacro.nestedFilterRead();
 
 
-        ESWriteMacroBenchmark esWriteMacro = new ESWriteMacroBenchmark();
-        esWriteMacro.insertOneByOne();
-        esWriteMacro.bulkInsert();
+            ESWriteMacroBenchmark esWriteMacro = new ESWriteMacroBenchmark();
+            esWriteMacro.insertOneByOne();
+            esWriteMacro.bulkInsert();
+        } else if (args[0].equalsIgnoreCase("SOLR")) {
 
-        SolrWriteMacroBenchmark solrWriteMacro = new SolrWriteMacroBenchmark();
-        solrWriteMacro.insertOneByOne();
-        solrWriteMacro.bulkInsert();
+            SolrReadMacroBenchmark solrReadMacro = new SolrReadMacroBenchmark();
+            solrReadMacro.simpleRead();
+            solrReadMacro.simplePatternRead();
+            solrReadMacro.nestedRead();
+            solrReadMacro.nestedFilteredRead();
+
+            SolrWriteMacroBenchmark solrWriteMacro = new SolrWriteMacroBenchmark();
+            solrWriteMacro.insertOneByOne();
+            solrWriteMacro.bulkInsert();
+        } else {
+            System.out.println("Dont know what to do here ...");
+        }
 
     }
 }

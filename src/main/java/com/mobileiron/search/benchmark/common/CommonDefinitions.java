@@ -7,9 +7,7 @@ import com.codahale.metrics.Meter;
  */
 public  final class CommonDefinitions {
 
-    public static final int MAX_MiCRO = 1000;
-
-    public static final int MAX_MACRO = 100000;
+    public static final int MAX = 100000;
 
     public static final String[] AUTHOR_TYPES = {"fiction", "mystery", "romance", "dark", "comedy"};
 

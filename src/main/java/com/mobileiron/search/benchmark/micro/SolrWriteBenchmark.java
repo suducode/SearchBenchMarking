@@ -24,7 +24,6 @@ import com.mobileiron.search.benchmark.exception.BenchmarkingException;
 /**
  * This class is written to benchmark solr writes on standalone as well as cluster.
  */
-
 public class SolrWriteBenchmark {
 
     @State(Scope.Thread)

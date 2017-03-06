@@ -23,6 +23,7 @@ import org.elasticsearch.transport.client.PreBuiltTransportClient;
 
 import com.codahale.metrics.Meter;
 import com.mobileiron.search.benchmark.exception.BenchmarkingException;
+
 import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 
 /**
@@ -30,11 +31,15 @@ import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
  */
 public class ESReadMacroBenchmark {
 
+    public ESReadMacroBenchmark() {
+        System.out.println("---------Elastic Search Reads Macro Benchmarking --------------");
+    }
+
     private Client client;
 
     private void setup() throws IOException, BenchmarkingException, InterruptedException {
 
-        System.out.println("Wait for te clean up process tom complete from before");
+        System.out.println("Waiting for the clean up process to complete from before ...");
         Thread.sleep(2000);
 
         client = new PreBuiltTransportClient(Settings.EMPTY)
@@ -42,7 +47,7 @@ public class ESReadMacroBenchmark {
 
         BulkRequestBuilder bulkRequest = client.prepareBulk();
 
-        for (int counter = 0; counter < MAX_MACRO; ++counter) {
+        for (int counter = 0; counter < MAX; ++counter) {
             XContentBuilder builder = XContentFactory.jsonBuilder().startObject()
                     .field("category", "book")
                     .field("id", "book-" + counter)
@@ -88,17 +93,17 @@ public class ESReadMacroBenchmark {
 
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
-                QueryBuilder matchSpecificFieldQuery = wildcardQuery("id", "*" + counter);
+            for (int counter = 0; counter < MAX; ++counter) {
+                QueryBuilder matchSpecificFieldQuery = wildcardQuery("id", "book-" + counter);
                 SearchResponse response = client.prepareSearch().setQuery(matchSpecificFieldQuery)
                         .setIndices("book")
                         .setTypes("Hobbit")
                         .execute()
                         .actionGet();
-                if (response.getHits().getTotalHits() > 0)
+                if (response.getHits().getTotalHits() > 0 || response.status().equals(RestStatus.OK))
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
 
@@ -108,6 +113,36 @@ public class ESReadMacroBenchmark {
         }
     }
 
+    public void simplePatterRead() throws IOException, BenchmarkingException, InterruptedException {
+
+        setup();
+
+        System.out.println("---------------Simple Pattern Reads ----------------------");
+
+        try {
+            Meter meter = new Meter();
+            for (int counter = 0; counter < MAX; ++counter) {
+                QueryBuilder matchSpecificFieldQuery = wildcardQuery("id", "*" + counter);
+                SearchResponse response = client.prepareSearch().setQuery(matchSpecificFieldQuery)
+                        .setIndices("book")
+                        .setTypes("Hobbit")
+                        .execute()
+                        .actionGet();
+                if (response.getHits().getTotalHits() > 0 || response.status().equals(RestStatus.OK))
+                    meter.mark();
+
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
+                    printStats(meter);
+            }
+
+            printStats(meter);
+        } finally {
+            tearDown();
+        }
+    }
+
+
+
     public void nestedRead() throws IOException, BenchmarkingException, InterruptedException {
 
         setup();
@@ -115,19 +150,19 @@ public class ESReadMacroBenchmark {
         System.out.println("---------------Nested Reads ----------------------");
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 QueryBuilder matchSpecificFieldQuery = wildcardQuery("author.lastname", "*" + counter);
                 SearchResponse response = client.prepareSearch().setQuery(matchSpecificFieldQuery)
                         .setIndices("book")
                         .setTypes("Hobbit")
                         .execute()
                         .actionGet();
-                if (response.getHits().getTotalHits() > 0)
+                if (response.getHits().getTotalHits() > 0 || response.status().equals(RestStatus.OK))
                     meter.mark();
                 else
                     System.out.println("Nothing to read :" + counter);
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
 
@@ -143,21 +178,21 @@ public class ESReadMacroBenchmark {
         System.out.println("---------------Nested Filtered Reads ----------------------");
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
 
                 QueryBuilder matchSpecificFieldQuery = QueryBuilders.boolQuery()
                         .should(wildcardQuery("id", "*"))
-                        .filter(wildcardQuery("author.authorType", "mystery")).minimumShouldMatch(1);
+                        .filter(wildcardQuery("author.authorType", "mystery"));
                 SearchResponse response = client.prepareSearch().setQuery(matchSpecificFieldQuery)
                         .setIndices("book")
                         .setTypes("Hobbit")
                         .execute()
                         .actionGet();
 
-                if (response.status().equals(RestStatus.OK))
+                if (response.getHits().getTotalHits() > 0 || response.status().equals(RestStatus.OK))
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
 

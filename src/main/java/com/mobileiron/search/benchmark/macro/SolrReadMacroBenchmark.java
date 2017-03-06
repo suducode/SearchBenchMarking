@@ -15,6 +15,7 @@ import org.apache.solr.common.SolrInputDocument;
 
 import com.codahale.metrics.Meter;
 import com.mobileiron.search.benchmark.exception.BenchmarkingException;
+
 import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 
 /**
@@ -24,14 +25,15 @@ public class SolrReadMacroBenchmark {
 
     private SolrClient server;
 
-    public static void main(String[] args) throws SolrServerException, BenchmarkingException, IOException {
+    public SolrReadMacroBenchmark() {
 
+        System.out.println("---------SOLR Reads Macro Benchmarking --------------");
     }
 
     private void setup() throws IOException, BenchmarkingException, SolrServerException {
         server = new HttpSolrClient.Builder().withBaseSolrUrl("http://localhost:9000/solr/benchmarktest1").build();
         List<SolrInputDocument> docs = new ArrayList<>();
-        for (int counter = 0; counter < MAX_MACRO; ++counter) {
+        for (int counter = 0; counter < MAX; ++counter) {
             SolrInputDocument doc = new SolrInputDocument();
             doc.addField("category", "book");
             doc.addField("id", "book-" + counter);
@@ -65,7 +67,36 @@ public class SolrReadMacroBenchmark {
 
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
+                SolrQuery query = new SolrQuery();
+                query.setQuery("id:book-" + counter);
+                query.addFilterQuery("category:book");
+                query.setFields("id", "name", "category");
+
+                QueryResponse response = server.query(query);
+                SolrDocumentList results = response.getResults();
+                if (results.size() > 0)
+                    meter.mark();
+
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
+                    printStats(meter);
+            }
+            printStats(meter);
+        } finally {
+            tearDown();
+        }
+    }
+
+
+    public void simplePatternRead() throws IOException, BenchmarkingException, SolrServerException {
+
+        setup();
+
+        System.out.println("---------------Simple Pattern Reads ----------------------");
+
+        try {
+            Meter meter = new Meter();
+            for (int counter = 0; counter < MAX; ++counter) {
                 SolrQuery query = new SolrQuery();
                 query.setQuery("id:*" + counter);
                 query.addFilterQuery("category:book");
@@ -76,7 +107,7 @@ public class SolrReadMacroBenchmark {
                 if (results.size() > 0)
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
             printStats(meter);
@@ -84,6 +115,8 @@ public class SolrReadMacroBenchmark {
             tearDown();
         }
     }
+
+
 
     public void nestedRead() throws IOException, BenchmarkingException, SolrServerException {
 
@@ -93,7 +126,7 @@ public class SolrReadMacroBenchmark {
 
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 SolrQuery query = new SolrQuery();
                 query.setQuery("lastname:*" + counter);
 
@@ -102,7 +135,7 @@ public class SolrReadMacroBenchmark {
                 if (results.size() > 0)
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
             printStats(meter);
@@ -120,7 +153,7 @@ public class SolrReadMacroBenchmark {
 
         try {
             Meter meter = new Meter();
-            for (int counter = 0; counter < MAX_MACRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 SolrQuery query = new SolrQuery();
                 query.setQuery("name:join +{!parent which=\"id:*\"}authorType:mystery");
 
@@ -130,7 +163,7 @@ public class SolrReadMacroBenchmark {
                 if (response.getStatus() == 0)
                     meter.mark();
 
-                if (meter.getCount() < MAX_MACRO && meter.getCount() % 20000 == 0)
+                if (meter.getCount() < MAX && meter.getCount() % 20000 == 0)
                     printStats(meter);
             }
             printStats(meter);

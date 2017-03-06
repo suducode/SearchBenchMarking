@@ -28,11 +28,10 @@ import org.openjdk.jmh.logic.BlackHole;
 
 import com.mobileiron.search.benchmark.exception.BenchmarkingException;
 
+
 /**
  * Elastic search write benchmarking on a single node and a cluster
  */
-
-
 public class ESWriteBenchmark {
     @State(Scope.Thread)
     public static class MyState {

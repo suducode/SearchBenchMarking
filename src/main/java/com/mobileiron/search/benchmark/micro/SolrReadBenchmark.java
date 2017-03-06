@@ -9,7 +9,6 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.GenerateMicroBenchmark;
@@ -23,12 +22,12 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.logic.BlackHole;
 
 import com.mobileiron.search.benchmark.exception.BenchmarkingException;
+
 import static com.mobileiron.search.benchmark.common.CommonDefinitions.*;
 
 /**
  * This class is written to do benchmarking on the solr writes both standalone and cluster
  */
-
 public class SolrReadBenchmark {
 
     @State(Scope.Thread)
@@ -37,7 +36,7 @@ public class SolrReadBenchmark {
         @Setup(Level.Trial)
         public void doSetup() throws IOException, SolrServerException {
             server = new HttpSolrClient.Builder().withBaseSolrUrl("http://localhost:9000/solr/benchmarktest1").build();
-            for (int counter = 0; counter < MAX_MiCRO; ++counter) {
+            for (int counter = 0; counter < MAX; ++counter) {
                 SolrInputDocument doc = new SolrInputDocument();
                 doc.addField("category", "book");
                 doc.addField("id", "book-" + counter);
@@ -46,11 +45,10 @@ public class SolrReadBenchmark {
                 SolrInputDocument childDoc = new SolrInputDocument();
                 childDoc.addField("firstname", "first" + counter);
                 childDoc.addField("lastname", "last" + counter);
-                childDoc.addField("authorType",AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)]);
+                childDoc.addField("authorType", AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)]);
 
                 doc.addChildDocument(childDoc);
                 server.add(doc);
-                if (counter % 100 == 0) server.commit();  // periodically flush
             }
             server.commit();
             System.out.println("Setup Done");
@@ -74,18 +72,14 @@ public class SolrReadBenchmark {
     public void testSimpleRead(MyState state, BlackHole blackhole) throws IOException, SolrServerException, BenchmarkingException {
 
         SolrQuery query = new SolrQuery();
-        int curr = (++state.inc);
-        if (curr == MAX_MiCRO) {
-            state.inc = 1;
-            curr = state.inc;
-        }
+        int curr = ++state.inc;
+
         query.setQuery("id:*" + curr);
         query.addFilterQuery("category:book");
         query.setFields("id", "name", "category");
 
         QueryResponse response = state.server.query(query);
-        SolrDocumentList results = response.getResults();
-        sendToBlackHole(results, blackhole);
+        sendToBlackHole(response, blackhole);
     }
 
     @GenerateMicroBenchmark
@@ -94,16 +88,12 @@ public class SolrReadBenchmark {
     public void testNestedRead(MyState state, BlackHole blackhole) throws IOException, SolrServerException, BenchmarkingException {
 
         SolrQuery query = new SolrQuery();
-        int curr = (++state.inc);
-        if (curr == MAX_MiCRO) {
-            state.inc = 1;
-            curr = state.inc;
-        }
+        int curr = ++state.inc;
+
         query.setQuery("lastname:*" + curr);
 
         QueryResponse response = state.server.query(query);
-        SolrDocumentList results = response.getResults();
-        sendToBlackHole(results, blackhole);
+        sendToBlackHole(response, blackhole);
     }
 
     /**
@@ -115,18 +105,16 @@ public class SolrReadBenchmark {
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void testNestedFilterRead(MyState state, BlackHole blackhole) throws IOException, SolrServerException, BenchmarkingException {
 
-     SolrQuery query = new SolrQuery();
-     query.setQuery("name:join +{!parent which=\"id:*\"}authorType:"+AUTHOR_TYPES[new Random().nextInt(AUTHOR_TYPES.length)]);
+        SolrQuery query = new SolrQuery();
+        query.setQuery("name:join +{!parent which=\"id:*\"}authorType:mystery");
 
         QueryResponse response = state.server.query(query);
-        SolrDocumentList results = response.getResults();
-        if (results.size() > 0)
-            blackhole.consume(results);
+        sendToBlackHole(response, blackhole);
     }
 
-    private void sendToBlackHole(SolrDocumentList results, BlackHole blackHole) throws BenchmarkingException {
-        if (results.size() > 0) {
-            blackHole.consume(results);
+    private void sendToBlackHole(QueryResponse response, BlackHole blackHole) throws BenchmarkingException {
+        if (response.getResults().size() > 0 || response.getStatus() == 0) {
+            blackHole.consume(response);
         } else {
             throw new BenchmarkingException("Solr did not return anything");
         }
